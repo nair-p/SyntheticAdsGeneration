@@ -13,9 +13,7 @@ def parse_args():
 	args = parser.parse_args()
 	return args
 
-def main():
-	# get arguments
-	args = parse_args()
+def create_dataset_with_micro_clusters(args):
 	# load data
 	starter_data = load_data(args.starter_file)
 
@@ -24,6 +22,20 @@ def main():
 
 	# adding duplicates and inserting micro-clusters
 	df_with_micro_clusters = add_clusters(df_with_meta_data)
+
+	return df_with_micro_clusters
+
+def main():
+	# get arguments
+	args = parse_args()
+
+	# adding micro-clusters
+	df_with_micro_clusters = create_dataset_with_micro_clusters(args)
+	save_file_name = args.starter_file.split(".csv")[0] + "_with_clusters.csv"
+
+	print("Size of augmented dataset = " + str(df_with_micro_clusters.shape))
+	df_with_micro_clusters.to_csv(save_file_name, index=False)
+
 
 if __name__ == '__main__':
 	main()

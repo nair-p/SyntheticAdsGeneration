@@ -4,6 +4,18 @@ from scipy.stats import truncnorm
 from scipy.stats import levy, levy_stable, pareto
 import random
 import matplotlib.pyplot as plt
+import datetime
+import ast
+
+def get_list_of_names(df):
+	names = df.names
+	list_of_names = []
+	for name in names:
+		name_list = ast.literal_eval(name)
+		list_of_names.extend(name_list)
+
+	list_of_names = list(set(list_of_names))
+	return list_of_names
 
 def add_clusters(df, total_size=1000000):
 	# function to duplicate ads and inject micro-clusters
@@ -26,24 +38,62 @@ def add_clusters(df, total_size=1000000):
 	full_ads = []
 	cluster_labels = []
 	locations = []
+	posting_dates = []
+	all_names = []
 
+	names_list = get_list_of_names(df)
 
 	for id, row in df.iterrows():
-		ad = row.cleaned_text
+		ad = row.description
 		duplicate = np.random.rand() > 0.5
 		location = row.location
-		post_date = row.post_date
+		post_date = datetime.datetime.strptime(row.post_date, "%m/%d/%Y")
+		names = ast.literal_eval(row.names)
+		size = int(cluster_sizes[id])
+
+		cluster_labels.extend([id]*size)
+		possible_dates = []
+		for day in range(10):
+			possible_dates.append(post_date + datetime.timedelta(days=day))
+			possible_dates.append(post_date - datetime.timedelta(days=day))
+
+		posting_dates.extend(np.random.choice(possible_dates, size=size))
 		if duplicate: # 60% of the time, duplicate the ad
 			keep_same_location = np.random.rand() > 0.5
+			full_ads.extend([ad] * size)
+			all_names.extend([names]*size)
+
 			if keep_same_location:
-				size = cluster_sizes[id]
-				full_ads.extend([ad] * size)
 				locations.extend([location] * size)
-				
 			else:
+				locations.extend(['to_change'] * size)
 
 		else: # 40% of the time, make small variations
+			number_of_words = len(ad.split())
+			percent_words_to_change = np.random.choice(range(6), size=size)
+			locations.extend([location] * size)
 
+			change_words = np.random.rand() > 0.5
+
+			if change_words:
+				all_names.extend([names]*size)
+				for percent in percent_words_to_change:
+					number_words_to_change = int(percent/100*number_of_words)
+					idx_to_remove = np.random.choice(range(number_of_words), size=number_words_to_change, replace=False)
+					words_list = np.array(ad.split())
+					words_list[idx_to_remove] = ""
+					full_ads.append(" ".join(x for x in words_list))
+			else:
+				full_ads.extend([ad] * size)
+				all_names.extend(np.random.choice(list(set(names_list) - set(names)), size=size))
+
+	new_df = pd.DataFrame(columns=['cleaned_text', 'cluster_id', 'location', 'names', 'post_dates'])
+	new_df['cleaned_text'] = full_ads
+	new_df['cluster_id'] = cluster_labels
+	new_df['location'] = locations
+	new_df['names'] = all_names
+	new_df['post_dates'] = posting_dates
+	return new_df
 
 
 def generate_random_phones(size):
@@ -85,7 +135,7 @@ def load_data(filename):
 	input: filename - path to the csv file containing the unique starter ads
 	output: data - csv file loaded from the given path as a csv file
 	'''
-	data = pd.read_csv(filename, index_col=False,nrows=100)
+	data = pd.read_csv(filename, index_col=False)
 	if 'cleaned_text' in data.columns:
 		data.rename(columns={'cleaned_text':'description'},inplace=True)
 	return data

@@ -4,6 +4,43 @@ import pandas as pd
 import ast
 from utils import generate_random_phones
 
+def add_email_address(df):
+	# function to create email ids based off of the names. 
+	'''
+	input: df - dataframe containing starter ads and names advertised
+	output: df - dataframe with a "email" column for the added email ids
+	'''
+	print("Adding email addresses...")
+	number_of_ads = len(df)
+	email_tags = [
+	"@mail.com",
+	"@email.com",
+	"@look.com"
+	]
+
+	email_prefix = [
+	"mailme_",
+	"",
+	"msg.",
+	"txt."
+	]
+
+	emails = []
+	for id, row in df.iterrows():
+		names = row.names
+		if names == '[]':
+			emails.append(np.nan)
+		else:
+			names_list = ast.literal_eval(names)
+			selected_name = np.random.choice(names_list, size=1)[0]
+			selected_tag = np.random.choice(email_tags, size=1)[0]
+			selected_prefix = np.random.choice(email_prefix, size=1)[0]
+			emails.append(selected_prefix+selected_name.lower()+selected_tag)
+
+	df['email'] = emails
+	return df
+
+
 def add_social_media(df):
 	# function to create social media tags based off of the names. 
 	'''
@@ -125,5 +162,6 @@ def add_meta_data(df, random_generation=False):
 	df = add_locations(df)
 	df = add_phone_numbers(df, random_generation)
 	df = add_social_media(df)
+	df = add_email_address(df)
 
 	return df
