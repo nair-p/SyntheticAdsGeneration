@@ -6,6 +6,36 @@ import random
 import matplotlib.pyplot as plt
 import datetime
 import ast
+from tqdm import tqdm
+import haversine as hs
+
+def find_loc_radii(list_locs):
+	# this function finds the maximum radius covered by a given list of locations
+	'''
+	input: list_locs - list of locations as (lat, lon) pairs
+	output: radius - maximum radius covered by the farthest locations provided in the list
+	'''
+	locations_info = pd.read_csv("locations.csv", index_col=False)
+	loc_geo = locations_info[locations_info['city'].isin(list_locs)][['xcoord','ycoord']].values
+
+	t_lat = sorted(loc_geo, key=lambda x: float(x[0]),reverse=True)
+	t_lon = sorted(loc_geo, key=lambda x: float(x[1]),reverse=True)
+
+	print(t_lat)
+	x11 = float(t_lat[0][0])
+	y11 = float(t_lat[0][1])
+	x21 = float(t_lat[-1][0])
+	y21 = float(t_lat[-1][1])
+	
+	x12 = float(t_lon[0][0])
+	y12 = float(t_lon[0][1])
+	x22 = float(t_lon[-1][0])
+	y22 = float(t_lon[-1][1])
+	
+	d1 = hs.haversine((x11,y11),(x21,y21))
+	d2 = hs.haversine((x12,y12),(x22,y22))
+	radius = max(d1, d2)
+	return radius
 
 def get_list_of_names(df):
 	names = df.names
@@ -40,6 +70,9 @@ def add_clusters(df, total_size=1000000):
 	locations = []
 	posting_dates = []
 	all_names = []
+	all_phones = []
+	all_socials = []
+	all_emails = []
 
 	names_list = get_list_of_names(df)
 
@@ -47,11 +80,17 @@ def add_clusters(df, total_size=1000000):
 		ad = row.description
 		duplicate = np.random.rand() > 0.5
 		location = row.location
+		phone = row.phone
+		email = row.email
+		social = row.social
 		post_date = datetime.datetime.strptime(row.post_date, "%m/%d/%Y")
 		names = ast.literal_eval(row.names)
 		size = int(cluster_sizes[id])
 
 		cluster_labels.extend([id]*size)
+		all_phones.extend([phone]*size)
+		all_emails.extend([email]*size)
+		all_socials.extend([social]*size)
 		possible_dates = []
 		for day in range(10):
 			possible_dates.append(post_date + datetime.timedelta(days=day))
@@ -93,6 +132,9 @@ def add_clusters(df, total_size=1000000):
 	new_df['location'] = locations
 	new_df['names'] = all_names
 	new_df['post_dates'] = posting_dates
+	new_df['phone'] = all_phones
+	new_df['social'] = all_socials
+	new_df['email'] = all_emails
 	return new_df
 
 
@@ -135,7 +177,7 @@ def load_data(filename):
 	input: filename - path to the csv file containing the unique starter ads
 	output: data - csv file loaded from the given path as a csv file
 	'''
-	data = pd.read_csv(filename, index_col=False)
+	data = pd.read_csv(filename, index_col=False, nrows=100)
 	if 'cleaned_text' in data.columns:
 		data.rename(columns={'cleaned_text':'description'},inplace=True)
 	return data
