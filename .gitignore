@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+french_keywords.txt
+
 # C extensions
 *.so
 

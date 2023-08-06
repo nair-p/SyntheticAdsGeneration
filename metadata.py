@@ -2,7 +2,8 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import ast
-from utils import generate_random_phones
+import random
+from utils import generate_random_phones, random_date
 
 def add_email_address(df):
 	# function to create email ids based off of the names. 
@@ -116,28 +117,6 @@ def add_post_date(df):
 	input: df - dataframe of starter ads
 	output: df - dataframe with randomly generated post-dates
 	'''
-	import random
-	import time
-	# below code is from https://stackoverflow.com/questions/553303/generate-a-random-date-between-two-other-dates
-	def str_time_prop(start, end, time_format, prop):
-	    """Get a time at a proportion of a range of two formatted times.
-
-	    start and end should be strings specifying times formatted in the
-	    given format (strftime-style), giving an interval [start, end].
-	    prop specifies how a proportion of the interval to be taken after
-	    start.  The returned time will be in the specified format.
-	    """
-
-	    stime = time.mktime(time.strptime(start, time_format))
-	    etime = time.mktime(time.strptime(end, time_format))
-
-	    ptime = stime + prop * (etime - stime)
-
-	    return time.strftime(time_format, time.localtime(ptime))
-
-
-	def random_date(start, end, prop):
-	    return str_time_prop(start, end, '%m/%d/%Y', prop)
 	    
 	number_of_ads = len(df)
 	post_dates = []

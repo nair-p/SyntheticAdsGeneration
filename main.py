@@ -45,12 +45,23 @@ def main():
 
 	else:
 		file_name = args.starter_file.split(".csv")[0] + "_with_clusters.csv"
-		df_with_micro_clusters = pd.read_csv(file_name, index_col=False, nrows=2000)
+		df_with_micro_clusters = pd.read_csv(file_name, index_col=False)
 
+	print(df_with_micro_clusters.shape)
+	save_file_name = args.starter_file.split(".csv")[0] + " _with_mo.csv"
+	df_with_micro_clusters['mo_labels'] = None
+	
 	# adding M.Os
 	df_with_mo = add_activity(df_with_micro_clusters, mo_type='spam')
+	df_with_mo.to_csv(save_file_name, index=False)
+	# df_with_mo = pd.read_csv(save_file_name, index_col=False)
 
+	df_with_mo = add_activity(df_with_mo, mo_type='ht')
+	df_with_mo.to_csv(save_file_name, index=False)
 
+	df_with_mo = add_activity(df_with_mo, mo_type='isw')
+	print("Size of augmented dataset = " + str(df_with_mo.shape))
+	df_with_mo.to_csv(save_file_name, index=False)
 
 if __name__ == '__main__':
 	main()

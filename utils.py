@@ -8,6 +8,63 @@ import datetime
 import ast
 from tqdm import tqdm
 import haversine as hs
+import time
+import geopandas as gpd
+import shapely
+
+def get_locations_within_radius(city, size, radius):
+	# this function takes a city name and radius as input and returns locations within that radius
+	'''
+	input: city - name of the base location
+		   size - number of cities required within the radius
+		   radius - maximum radius of distance to be considered
+
+	output: nearby_points - city names within the given radius of the given city
+	'''
+	import libpysal
+	from libpysal.cg.kdtree import KDTree 
+
+	# data file containing the lat, lon info of cities in the country
+	location_info = pd.read_csv("locations.csv",index_col=False)
+	city_info = location_info[location_info.city==city]
+
+	locations = list(zip(location_info.xcoord, location_info.ycoord))
+	tree = KDTree(locations, distance_metric='Arc', radius=libpysal.cg.RADIUS_EARTH_MILES)
+	current_point = (city_info.xcoord.tolist()[0], city_info.ycoord.tolist()[0])
+
+	# get all points within 1 mile of 'current_point'
+	indices = tree.query_ball_point(current_point, radius)
+	potential_points = np.array(locations)[indices]
+
+	potential_cities = []
+	for point in potential_points:
+		potential_cities.extend(location_info[(location_info.xcoord==point[0]) & (location_info.ycoord==point[1])].city.values)
+
+	return potential_cities[:size]
+
+
+
+def beautify(given_list):
+	# this function takes a list of list with non-constant size and ravels it into a single list
+	'''
+	input: given_list - list of lists
+	output: ravelled_list - single ravelled list of input
+	'''
+	new_list = []
+	for item in given_list:
+		if type(item) != list:
+			if item[0] == '[':
+				new_list.append(ast.literal_eval(item))
+			else:
+				new_list.append([item])
+		else:
+			new_list.append(item)
+
+	# given_list = [ast.literal_eval(x) if x!= "" and x[0] == '[' else [x] for x in given_list]
+	ravelled_list = []
+	for item in new_list:
+		ravelled_list.extend(item)
+	return ravelled_list
 
 def find_loc_radii(list_locs):
 	# this function finds the maximum radius covered by a given list of locations
@@ -21,7 +78,6 @@ def find_loc_radii(list_locs):
 	t_lat = sorted(loc_geo, key=lambda x: float(x[0]),reverse=True)
 	t_lon = sorted(loc_geo, key=lambda x: float(x[1]),reverse=True)
 
-	print(t_lat)
 	x11 = float(t_lat[0][0])
 	y11 = float(t_lat[0][1])
 	x21 = float(t_lat[-1][0])
@@ -46,6 +102,29 @@ def get_list_of_names(df):
 
 	list_of_names = list(set(list_of_names))
 	return list_of_names
+
+
+# below code is from https://stackoverflow.com/questions/553303/generate-a-random-date-between-two-other-dates
+def str_time_prop(start, end, time_format, prop):
+    """Get a time at a proportion of a range of two formatted times.
+
+    start and end should be strings specifying times formatted in the
+    given format (strftime-style), giving an interval [start, end].
+    prop specifies how a proportion of the interval to be taken after
+    start.  The returned time will be in the specified format.
+    """
+
+    stime = time.mktime(time.strptime(start, time_format))
+    etime = time.mktime(time.strptime(end, time_format))
+
+    ptime = stime + prop * (etime - stime)
+    # print(stime, prop, etime, stime)
+
+    return time.strftime(time_format, time.localtime(ptime))
+
+
+def random_date(start, end, prop):
+    return str_time_prop(start, end, '%Y-%m-%d', prop)
 
 def add_clusters(df, total_size=1000000):
 	# function to duplicate ads and inject micro-clusters
@@ -76,6 +155,8 @@ def add_clusters(df, total_size=1000000):
 
 	names_list = get_list_of_names(df)
 
+	locations_list = pd.read_csv("locations.csv",index_col=False).city.values
+
 	for id, row in df.iterrows():
 		ad = row.description
 		duplicate = np.random.rand() > 0.5
@@ -105,7 +186,8 @@ def add_clusters(df, total_size=1000000):
 			if keep_same_location:
 				locations.extend([location] * size)
 			else:
-				locations.extend(['to_change'] * size)
+				new_location = np.random.choice(list(set(locations_list)-{location}))
+				locations.extend([new_location] * size)
 
 		else: # 40% of the time, make small variations
 			number_of_words = len(ad.split())
@@ -177,7 +259,7 @@ def load_data(filename):
 	input: filename - path to the csv file containing the unique starter ads
 	output: data - csv file loaded from the given path as a csv file
 	'''
-	data = pd.read_csv(filename, index_col=False, nrows=100)
+	data = pd.read_csv(filename, index_col=False)
 	if 'cleaned_text' in data.columns:
 		data.rename(columns={'cleaned_text':'description'},inplace=True)
 	return data
