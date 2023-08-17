@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 french_keywords.txt
+phone_numbers.txt
 
 # C extensions
 *.so

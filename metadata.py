@@ -3,7 +3,103 @@ import numpy as np
 import pandas as pd
 import ast
 import random
+import networkx as nx
 from utils import generate_random_phones, random_date
+from itertools import combinations
+from igraph import *
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.sparse.csgraph import connected_components
+from collections import Counter
+
+def fill_meta_data(df):
+	# function to explicitly add edges/connections among clusters
+	'''
+	input: df - dataframe with clusters that need to be conencted using meta-data
+	output: df - dataframe with connections
+	'''
+	# connections can be by means of 3 meta-data sources
+	'''
+	1. phone numbers
+	2. social media tags
+	3. email ids
+	'''
+
+	def add_links(data, connections):
+		for connection in tqdm(connections):
+			e1 = connection[0]
+			e2 = connection[1]
+
+			df1 = data[data.cluster_id==e1]
+			df2 = data[data.cluster_id==e2]
+
+			meta_choice = np.random.choice(['phone','social','email'])
+
+			val1 = df1[meta_choice].values
+			val2 = df2[meta_choice].values
+
+
+			for idx, val in zip(df1.index.values, val2[:len(df1)]):
+				data.loc[idx, meta_choice] = val
+
+		return data
+
+	clusters = df.cluster_id.unique()
+	number_of_clusters = len(clusters)
+	number_of_meta_clusters = 720
+	mean_cluster_size = number_of_clusters / number_of_meta_clusters
+	shape, mode = 1., 10  # shape and mode of the pareto distribution
+	lower = mean_cluster_size/2
+	upper = 2*mean_cluster_size
+
+	clus_ind_map = dict(zip(df['cluster_id'].unique(),range(number_of_clusters)))
+	micro_to_meta_map = np.zeros([number_of_clusters, number_of_clusters])
+	meta_id = 0
+	available_clusters = set(clusters)
+	meta_label_map = {}
+
+	for meta_cluster in tqdm(range(number_of_meta_clusters)):
+	# while tqdm(len(available_clusters) > 0):
+		size = np.random.pareto(shape, 1) + lower
+		size = int(size[0])
+		while size > upper:
+			size = np.random.pareto(shape, 1) + lower
+			size = int(size[0])
+
+		nodes_in_comp = np.random.choice(list(available_clusters), size=size, replace=False)
+		for x in nodes_in_comp:
+			meta_label_map[x] = meta_id
+
+		meta_id += 1
+		
+		indices = list(combinations(nodes_in_comp, 2))
+		for index in indices:
+			micro_to_meta_map[clus_ind_map[index[0]]][clus_ind_map[index[1]]] += 1
+
+		# randomly sample number of connections
+		num_phone_connections = np.random.choice(range(len(indices))) # arbitrarily chosen values
+		num_social_connections = np.random.choice(range(len(indices)))
+		num_email_connections = np.random.choice(range(len(indices)))
+
+		# df = add_links(df, indices)
+
+		available_clusters = available_clusters - set(nodes_in_comp)
+
+	# remaining nodes
+	for x in available_clusters:
+		meta_label_map[x] = meta_id
+	
+
+	df['Meta label'] = df['cluster_id'].apply(lambda x:meta_label_map[x])
+	
+	all_cluster_sizes = []
+	for cl, grp in df.groupby("Meta label"):
+		all_cluster_sizes.append(grp.cluster_id.nunique())
+
+	print(Counter(all_cluster_sizes))
+
+	return df
+
 
 def add_email_address(df):
 	# function to create email ids based off of the names. 

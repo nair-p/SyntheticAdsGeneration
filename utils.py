@@ -11,6 +11,8 @@ import haversine as hs
 import time
 import geopandas as gpd
 import shapely
+from itertools import combinations
+import networkx as nx
 
 def get_locations_within_radius(city, size, radius):
 	# this function takes a city name and radius as input and returns locations within that radius
@@ -64,7 +66,7 @@ def beautify(given_list):
 	ravelled_list = []
 	for item in new_list:
 		ravelled_list.extend(item)
-	return ravelled_list
+	return np.unique(ravelled_list)
 
 def find_loc_radii(list_locs):
 	# this function finds the maximum radius covered by a given list of locations
@@ -122,6 +124,61 @@ def str_time_prop(start, end, time_format, prop):
 
     return time.strftime(time_format, time.localtime(ptime))
 
+
+def find_meta_clusters(df, level_of_analysis='LSH label'):
+	# function to find meta-cluster labels
+	print("Finding meta clusters...\n")
+	num_micro = df[level_of_analysis].nunique()
+	clus_ind_map = dict(zip(df[level_of_analysis].unique(),range(num_micro)))
+	micro_to_meta_map = np.zeros([num_micro, num_micro])
+	
+	phone_col = "phone"
+	p = df.dropna(subset=[phone_col])
+	for id, grp in tqdm(p.groupby(phone_col)):
+	# p = df.dropna(subset=['phone'])
+	# for id, grp in tqdm(p.groupby('phone')):
+	    clusters = grp[level_of_analysis].unique()
+	    pairs = combinations(clusters, 2)
+	    for e1, e2 in pairs:
+	        micro_to_meta_map[clus_ind_map[e1]][clus_ind_map[e2]] += 1
+	
+	if 'image_id' in df.columns:
+		p = df.dropna(subset=['image_id'])  
+		for id, grp in tqdm(p.groupby('image_id')):
+		    clusters = grp[level_of_analysis].unique()
+		    pairs = combinations(clusters, 2)
+		    for e1, e2 in pairs:
+		        micro_to_meta_map[clus_ind_map[e1]][clus_ind_map[e2]] += 1
+
+	if 'email' in df.columns:
+		p = df.dropna(subset=['email'])
+		for id, grp in tqdm(p.groupby('email')):
+		    clusters = grp[level_of_analysis].unique()
+		    pairs = combinations(clusters, 2)
+		    for e1, e2 in pairs:
+		        micro_to_meta_map[clus_ind_map[e1]][clus_ind_map[e2]] += 1
+
+	if 'social' in df.columns:
+		p = df.dropna(subset=['social'])
+		for id, grp in tqdm(p.groupby('social')):
+		    clusters = grp[level_of_analysis].unique()
+		    pairs = combinations(clusters, 2)
+		    for e1, e2 in pairs:
+		        micro_to_meta_map[clus_ind_map[e1]][clus_ind_map[e2]] += 1
+
+	nx_graph = nx.Graph(micro_to_meta_map).to_directed()
+	# finding connected components as meta clusters
+	meta_label_map = {}
+	clus_counter = 0
+	num_comps = 0
+	for compo in nx.strongly_connected_components(nx_graph):
+	    num_comps += 1
+	    for node in list(compo):
+	        meta_label_map[node] = clus_counter
+	    clus_counter += 1
+	df['Meta label'] = df[level_of_analysis].apply(lambda x:meta_label_map[clus_ind_map[x]])
+	print("Number of meta clusters = " + str(df['Meta label'].nunique()))
+	return df, nx_graph
 
 def random_date(start, end, prop):
     return str_time_prop(start, end, '%Y-%m-%d', prop)
@@ -242,14 +299,15 @@ def generate_random_phones(size):
 		return ''.join(map(str, random.sample(range(10),4)))
 
 	def makePhone(): # putting everything together
-		first = makeFirst()
-		second = makeSecond()
-		last = makeLast()
-		return '{3}-{3}-{4}'.format(first,second,last)
+		first = str(makeFirst())
+		second = str(makeSecond())
+		last = str(makeLast())
+		return first+"-"+second+"-"+last
+		# return '{3}-{3}-{4}'.format(first,second,last)
 
 	numbers = []
-	for _ in tqdm(range(size)):
-		numbers.append(makePhone)
+	for _ in range(size):
+		numbers.append(makePhone())
 
 	return numbers
 

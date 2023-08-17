@@ -1,3 +1,8 @@
+'''
+CAUTION: There are explicit words used in the code as keywords to flag certain behaviour. 
+Please exercise caution while reading.
+'''
+
 from utils import *
 import pandas as pd
 from tqdm import tqdm
@@ -30,11 +35,11 @@ def add_isw(df, isw_percent=0.5):
 
 	SW_KEYWORDS = ["mature", "classy", "real", "deposit", 'advance', "professional", "appointment", 'milf', 'mommy']
 
-	number_of_clusters = df.cluster_id.nunique()
+	number_of_clusters = df['Meta label'].nunique()
 	number_of_isw_clusters = int(isw_percent*number_of_clusters)
-	available_clusters = df[df.mo_labels.isna()].cluster_id.unique()
+	available_clusters = df[df.mo_labels.isna()]['Meta label'].unique()
 	isw_cluster_ids = np.random.choice(available_clusters, size=number_of_isw_clusters, replace=False)
-	isw_idx = df[df.cluster_id.isin(isw_cluster_ids)].index.values
+	isw_idx = df[df['Meta label'].isin(isw_cluster_ids)].index.values
 	mo_labels = df.mo_labels.values
 	mo_labels[isw_idx] = 'isw'
 
@@ -44,42 +49,48 @@ def add_isw(df, isw_percent=0.5):
 	clusters_with_2_phones = np.random.choice(isw_cluster_ids, size=int(0.05*number_of_isw_clusters))
 	clusters_with_1_phone = list(set(isw_cluster_ids) - set(clusters_with_2_phones))
 
-	for cluster_id in tqdm(isw_cluster_ids):
-		grp = df[df.cluster_id==cluster_id]
-		number_of_locations = grp.location.nunique()
-		grp_names = beautify(grp.names.values)
-		if len(grp_names) == 0:
-			grp_names = beautify(df.names.values)
-		number_of_names = len(np.unique(grp_names))
-		grp_phones = grp.phone.unique()
+	print(len(isw_cluster_ids))
+	# print(df.post_dates.unique())
 
-		# adding ISW related keywords
-		number_of_instances_to_add = np.random.choice(range(1,6), size=1)[0]
-		type_of_kw_to_add = np.random.choice(['restrictions', 'isw_keywords', 'calls'],\
-			size=number_of_instances_to_add)
+	for meta_cluster_id in tqdm(isw_cluster_ids):
+		meta_grp = df[df['Meta label']==meta_cluster_id]
 
-		words_to_add = []
-		for type_to_add in type_of_kw_to_add:
-			if type_to_add == 'restrictions':
-				words_to_add.append(np.random.choice(RESTRICTED_SEX_SEQUENCE))
-			elif type_to_add == 'isw_keywords':
-				words_to_add.append(np.random.choice(SW_KEYWORDS))
-			else:
-				words_to_add.append(np.random.choice(SW_INCALL_WORDS))
-		for ad, ind in zip(grp.cleaned_text.values, grp.index.values):
-			words = ad.split(" ")
-			
-			idx_to_insert = np.random.choice(range(len(words)), size=len(words_to_add))
-			start_idx = idx_to_insert[0]
-			new_ad = " ".join(x for x in words[:start_idx])
+		for cluster_id, grp in tqdm(meta_grp.groupby("cluster_id")):
+			grp = df[df.cluster_id==cluster_id]
+			number_of_locations = grp.location.nunique()
+			grp_names = beautify(grp.names.values)
+			if len(grp_names) == 0:
+				grp_names = beautify(df.names.values)
+			number_of_names = len(np.unique(grp_names))
+			grp_phones = meta_grp.phone.unique()
 
-			for id, idx in enumerate(idx_to_insert[1:]):
-				new_ad += " ".join(x for x in words[start_idx:idx])
-				new_ad += (" "+words_to_add[id]+" ")
-				start_idx = idx
+			# adding ISW related keywords
+			number_of_instances_to_add = np.random.choice(range(1,10), size=1)[0]
+			type_of_kw_to_add = np.random.choice(['restrictions', 'isw_keywords', 'calls'],\
+				size=number_of_instances_to_add)
 
-			new_ad += " ".join(x for x in words[start_idx:])
-			df.loc[ind, 'cleaned_text'] = new_ad
+			words_to_add = []
+			for type_to_add in type_of_kw_to_add:
+				if type_to_add == 'restrictions':
+					words_to_add.append(np.random.choice(RESTRICTED_SEX_SEQUENCE))
+				elif type_to_add == 'isw_keywords':
+					words_to_add.append(np.random.choice(SW_KEYWORDS))
+				else:
+					words_to_add.append(np.random.choice(SW_INCALL_WORDS))
+			for ad, ind in zip(grp.cleaned_text.values, grp.index.values):
+				words = ad.split(" ")
+				
+				idx_to_insert = np.random.choice(range(len(words)), size=len(words_to_add))
+				start_idx = idx_to_insert[0]
+				new_ad = " ".join(x for x in words[:start_idx])
+
+				for id, idx in enumerate(idx_to_insert[1:]):
+					new_ad += " ".join(x for x in words[start_idx:idx])
+					new_ad += (" "+words_to_add[id]+" ")
+					start_idx = idx
+
+				new_ad += " ".join(x for x in words[start_idx:])
+				df.loc[ind, 'cleaned_text'] = new_ad
 
 		if cluster_id in clusters_with_1_phone:
 			phone = np.random.choice(grp_phones)
@@ -101,7 +112,8 @@ def add_isw(df, isw_percent=0.5):
 		for i, indx in enumerate(grp.index.values):
 			df.loc[indx, 'phone'] = phones[i]
 			df.loc[indx, 'names'] = names[i]
-
+	print(df['post_dates'].unique())
+	print(df.shape)
 	return df
 
 def add_ht(df, ht_percent=0.2):
@@ -137,7 +149,7 @@ def add_ht(df, ht_percent=0.2):
 				   "short stay", "short term", "short time", "short period", "arrived in town", 
 				   "arrived short term", "for a limited time", "newly arrived", "passing through", 
 				   "on vacation", "in town for a few days", "i am a newb", "i am a newbie", "first time to", 
-				   "first time in", "first time here", "first time visiting", "new in the field",
+				   "first time in", "first time here", "first time visiting", "new in the field", 'roommate',
 				   "just turned 18", "turned 18", "hot teen", "fresh", "petite", "student", "college", "young",
 				   "juicy", "tight"]
 
@@ -146,107 +158,122 @@ def add_ht(df, ht_percent=0.2):
 # diff between degree distributions, number of connected components, size of connected components
 # get french keywords from Sophia
 
-	number_of_clusters = df.cluster_id.nunique()
+	number_of_clusters = df['Meta label'].nunique()
 	number_of_ht_clusters = int(ht_percent*number_of_clusters)
-	available_clusters = df[df.mo_labels.isna()].cluster_id.unique()
+	available_clusters = df[df.mo_labels.isna()]['Meta label'].unique()
 	ht_cluster_ids = np.random.choice(available_clusters, size=number_of_ht_clusters, replace=False)
-	ht_idx = df[df.cluster_id.isin(ht_cluster_ids)].index.values
+	# ht_cluster_ids = df[df.mo_labels=='ht'].cluster_id.unique()
+	ht_idx = df[df['Meta label'].isin(ht_cluster_ids)].index.values
 	mo_labels = df.mo_labels.values
 	mo_labels[ht_idx] = 'ht'
 
 	df['mo_labels'] = mo_labels
-	list_of_names = set(beautify(df.names.values))
+	
+
+	list_of_names = beautify(df.names.values)
 	df['post_dates'] = pd.to_datetime(df.post_dates)
 	df['post_dates'] = df.post_dates.dt.strftime('%Y-%m-%d')
 
-	for cluster_id in ht_cluster_ids:
-		grp = df[df.cluster_id==cluster_id]
-		number_of_locations = grp.location.nunique()
-		grp_names = beautify(grp.names.values)
-		number_of_names = len(np.unique(grp_names))
+	for meta_cluster_id in tqdm(ht_cluster_ids):
+		meta_grp = df[df['Meta label']==meta_cluster_id]
+		# df[df.mo_labels=='ht'].groupby("Meta label")
+		grp_phones = meta_grp.phone.unique()
 
-		# adding HT related keywords
-		number_of_instances_to_add = np.random.choice(range(1,6), size=1)[0]
-		type_of_kw_to_add = np.random.choice(['pronouns', 'restrictions', 'ht_keywords', 'calls'],\
-			size=number_of_instances_to_add)
+		for cluster_id, grp in tqdm(meta_grp.groupby("cluster_id")):
+			phones = np.random.choice(grp_phones, size=len(grp))
+			for id, indx in enumerate(grp.index.values):
+				df.loc[indx, 'phone'] = phones[id]
 
-		words_to_add = []
-		for type_to_add in type_of_kw_to_add:
-			if type_to_add == 'pronouns':
-				words_to_add.append(np.random.choice(PRONOUNS))
-			elif type_to_add == 'restrictions':
-				words_to_add.append(np.random.choice(NON_RESTRICTED_SEX_SEQUENCE))
-			elif type_to_add == 'ht_keywords':
-				words_to_add.append(np.random.choice(HT_KEYWORDS))
-			else:
-				words_to_add.append(np.random.choice(CALLS))
-		for ad, ind in tqdm(zip(grp.cleaned_text.values, grp.index.values)):
-			words = ad.split(" ")
-			
-			idx_to_insert = np.random.choice(range(len(words)), size=len(words_to_add))
-			start_idx = idx_to_insert[0]
-			new_ad = " ".join(x for x in words[:start_idx])
+			number_of_locations = grp.location.nunique()
+			grp_names = beautify(grp.names.values)
+			number_of_names = len(grp_names)
 
-			for id, idx in enumerate(idx_to_insert[1:]):
-				new_ad += " ".join(x for x in words[start_idx:idx])
-				new_ad += (" "+words_to_add[id]+" ")
-				start_idx = idx
+			# adding HT related keywords
+			number_of_instances_to_add = np.random.choice(range(1,8), size=1)[0]
+			type_of_kw_to_add = np.random.choice(['pronouns', 'restrictions', 'ht_keywords', 'calls'],\
+				size=number_of_instances_to_add)
 
-			new_ad += " ".join(x for x in words[start_idx:])
-			df.loc[ind, 'cleaned_text'] = new_ad
-
-		# ensuring more than 2 people are advertised
-		if number_of_names < 3:
-			remaining_names = list_of_names - set(grp_names)
-			name_count = np.random.choice(range(3,6))
-			new_names = np.random.choice(list(remaining_names), size=name_count-3, replace=False)
-			idx_to_add_names = np.random.choice(grp.index.values, size=len(new_names))
-			for id, indx in tqdm(enumerate(idx_to_add_names)):
-				names = grp.names.values[id]
-				if len(names) == 0:
-					names = []
-				elif names[0] == '[':
-					names = ast.literal_eval(names)
+			words_to_add = []
+			for type_to_add in type_of_kw_to_add:
+				if type_to_add == 'pronouns':
+					words_to_add.append(np.random.choice(PRONOUNS))
+				elif type_to_add == 'restrictions':
+					words_to_add.append(np.random.choice(NON_RESTRICTED_SEX_SEQUENCE))
+				elif type_to_add == 'ht_keywords':
+					words_to_add.append(np.random.choice(HT_KEYWORDS))
 				else:
-					names = [names]
-				names.append(new_names[id])
-				df.loc[indx, 'names'] = str(names)
+					words_to_add.append(np.random.choice(CALLS))
+			for ad, ind in zip(grp.cleaned_text.values, grp.index.values):
+				words = ad.split(" ")
+				
+				idx_to_insert = np.random.choice(range(len(words)), size=len(words_to_add))
+				start_idx = idx_to_insert[0]
+				new_ad = " ".join(x for x in words[:start_idx])
 
-		# movement indication
-		if number_of_locations > 1:
-			posting_dates = pd.to_datetime(grp.post_dates, infer_datetime_format=True)
-			location = grp.location.unique()[0] # base location
-			new_locations = get_locations_within_radius(location, size=len(grp), radius=200) # provide radius in kms
-			# new_locations = [locations[0]]*int(np.ceil(len(grp)/2))
-			# new_locations.extend([locations[1]]*int(np.ceil(len(grp)/2)))
-			
-			dates = sorted(posting_dates)
-			diff = (dates[-1]-dates[0])/np.timedelta64(1,'D')
-			new_dates = []
-			if diff < 4: # if movement happened in an unreasonable amount of time, then adjust it
-				for _ in tqdm(range(len(grp))):
-					start = dates[0].strftime('%Y-%m-%d')
-					end = dates[0]+timedelta(days=5)
-					end = end.strftime('%Y-%m-%d')
-					date = random_date(start, end, random.random())
-					if pd.isnull(date):
+				for id, idx in enumerate(idx_to_insert[1:]):
+					new_ad += " ".join(x for x in words[start_idx:idx])
+					new_ad += (" "+words_to_add[id]+" ")
+					start_idx = idx
+
+				new_ad += " ".join(x for x in words[start_idx:])
+				df.loc[ind, 'cleaned_text'] = new_ad
+
+			# ensuring more than 2 people are advertised
+			if number_of_names < 3:
+				remaining_names = set(list_of_names) - set(grp_names)
+				name_count = np.random.choice(range(3,6))
+
+				new_names = np.random.choice(list(remaining_names), size=name_count-number_of_names, replace=False)
+				all_names = list(grp_names) + list(new_names)
+				# change this to size of cluster * % of names to add
+				idx_to_add_names = np.random.choice(grp.index.values, size=len(all_names))
+				for id, indx in enumerate(idx_to_add_names):
+					df.loc[indx, 'names'] = str(all_names)
+
+
+			# movement indication
+			if number_of_locations > 1:
+				posting_dates = pd.to_datetime(grp.post_dates, infer_datetime_format=True)
+				location = grp.location.unique()[0] # base location
+				new_locations = get_locations_within_radius(location, size=len(grp), radius=200) # provide radius in kms
+				# new_locations = [locations[0]]*int(np.ceil(len(grp)/2))
+				# new_locations.extend([locations[1]]*int(np.ceil(len(grp)/2)))
+				
+				dates = sorted(posting_dates)
+				diff = (dates[-1]-dates[0])/np.timedelta64(1,'D')
+				new_dates = []
+
+				if diff < 3: # if movement happened in an unreasonable amount of time, then adjust it
+					for _ in range(len(grp)):
+						start = dates[0].strftime('%Y-%m-%d')
+						end = dates[0]+timedelta(days=5)
+						end = end.strftime('%Y-%m-%d')
 						date = random_date(start, end, random.random())
-					new_dates.append(date)
-			else:
-				new_dates = posting_dates.values
-			i = 0
-			if len(new_locations) < len(grp):
-				last_loc = new_locations[-1]
-				for _ in range(len(grp)-len(new_locations)):
-					new_locations.append(last_loc)
-			for ind, row in grp.iterrows():
-				df.loc[ind, 'location'] = new_locations[i]
-				df.loc[ind, 'post_dates'] = new_dates[i]
-				i+=1
+						counter = 0
+						while pd.isnull(date):
+							counter +=1
+							date = random_date(start, end, random.random())
+							if counter > 5:
+								date = end
+						new_dates.append(pd.to_datetime(date).strftime('%Y-%m-%d'))
+				else:
+					new_dates = posting_dates.values
+				i = 0
+				if len(new_locations) < len(grp):
+					last_loc = new_locations[-1]
+					for _ in range(len(grp)-len(new_locations)):
+						new_locations.append(last_loc)
+				for ind, row in grp.iterrows():
+					df.loc[ind, 'location'] = new_locations[i]
+					if pd.isnull(new_dates[i]):
+						df.loc[ind, 'post_dates'] = np.random.choice(list(set(list(np.unique(new_dates))-set(new_dates[i]))))
+					else:
+						df.loc[ind, 'post_dates'] = new_dates[i]
+					i+=1
 
 	df['post_dates'] = pd.to_datetime(df.post_dates)
 	df['post_dates'] = df.post_dates.dt.strftime('%Y-%m-%d')
-
+	print(df['post_dates'].unique())
 	return df
 
 
@@ -261,54 +288,70 @@ def add_spam(df, spam_percent=0.3):
 	input: df - dataframe with clustered ads
 	output: df - dataframe with added spam
 	'''
-	number_of_clusters = df.cluster_id.nunique()
+	number_of_clusters = df['Meta label'].nunique()
 	number_of_spam_clusters = int(spam_percent*number_of_clusters)
-	available_clusters = df[df.mo_labels.isna()].cluster_id.unique()
+	available_clusters = df[df['mo_labels'].isna()]['Meta label'].unique()
 	spam_cluster_ids = np.random.choice(available_clusters, size=number_of_spam_clusters, replace=False)
-	spam_idx = df[df.cluster_id.isin(spam_cluster_ids)].index.values
+	# spam_cluster_ids = df[df.mo_labels=='spam'].cluster_id.unique()
+	spam_idx = df[df['Meta label'].isin(spam_cluster_ids)].index.values
 	mo_labels = df.mo_labels.values
 	mo_labels[spam_idx] = 'spam'
 
 	df['mo_labels'] = mo_labels
-	all_dates = df.post_dates.values
+	all_dates = np.array(df.post_dates.values)
 
-	for cluster_id in spam_cluster_ids:
-		grp = df[df.cluster_id==cluster_id]
-		number_of_locations = grp.location.nunique()
-		if number_of_locations < 10:
-			locations_list = pd.read_csv("locations.csv",index_col=False).city.values
-			new_locations = np.random.choice(locations_list, size=10-number_of_locations)
-			idx = np.random.choice(grp.index.values, size=10-number_of_locations, replace=False)
-			for id, loc in zip(idx, new_locations):
-				df.loc[id, 'location'] = loc
+	for meta_cluster_id in tqdm(spam_cluster_ids):
+		meta_grp = df[df['Meta label']==meta_cluster_id]
 
-		number_of_phones = grp.phone.nunique()
-		if number_of_phones < 5: # adding more phone numbers
-			phones = grp.phone.unique()
-			num_phones = np.random.choice(range(5,10),size=1)[0]
-			new_phones = generate_random_phones(num_phones)
-			idx = np.random.choice(grp.index.values, size=num_phones, replace=False)
-			for id, ph in zip(idx, new_phones):
-				df.loc[id, 'phone'] = ph
+		for cluster_id, grp in tqdm(meta_grp.groupby('cluster_id')):
+			number_of_locations = grp.location.nunique()
+			if number_of_locations < 11:
+				locations_list = pd.read_csv("locations.csv",index_col=False).city.values
+				available_locs = list(set(locations_list) - set(list(grp.location.unique())))
+				number_of_new_locations = np.random.choice(list(range(10-number_of_locations, 25)))
+				new_locations = np.random.choice(available_locs, size=number_of_new_locations)
+				idx = np.random.choice(grp.index.values, size=number_of_new_locations, replace=False)
+				for id, loc in zip(idx, new_locations):
+					df.loc[id, 'location'] = loc
 
-		posting_dates = pd.to_datetime(grp.post_dates, infer_datetime_format=True)
-		dates = sorted(posting_dates)
-		diff = (dates[-1]-dates[0])/np.timedelta64(1,'D')
-		
-		# add bursty behavior
-		number_of_bursts = max(1, int(diff/4))
-		bursty_dates = np.random.choice(posting_dates, size=number_of_bursts, replace=False)
-		repeats = int(np.ceil(len(grp)/number_of_bursts)) # how many times should the bursty dates be repeated
+			number_of_phones = grp.phone.nunique()
+			if number_of_phones < 5: # adding more phone numbers
+				phones = grp.phone.unique()
+				num_phones = np.random.choice(range(5,15),size=1)[0]
+				new_phones = generate_random_phones(num_phones)
+				new_phones = list(set(new_phones))
+				assert len(new_phones) == num_phones
+				idx = np.random.choice(grp.index.values, size=num_phones, replace=False)
+				for id, ph in zip(idx, new_phones):
+					df.loc[id, 'phone'] = ph
 
-		modified_dates = []
-		for date in bursty_dates:
-			modified_dates.extend([date]*repeats)
+			posting_dates = pd.to_datetime(grp.post_dates, infer_datetime_format=True)
+			dates = sorted(posting_dates)
+			diff = (dates[-1]-dates[0])/np.timedelta64(1,'D')
+			
+			# add bursty behavior
+			number_of_bursts = max(1, int(diff/4))
+			bursty_dates = np.random.choice(posting_dates, size=number_of_bursts, replace=False)
+			repeats = int(np.ceil(len(grp)/number_of_bursts)) # how many times should the bursty dates be repeated
 
-		random.shuffle(modified_dates)
-		all_dates[grp.index.values] = modified_dates[:len(grp)]
+			modified_dates = []
+			for date in bursty_dates:
+				if pd.isnull(date):
+					print(posting_dates)
+					modified_dates.extend([posting_dates[0]]*repeats)
+				else:
+					modified_dates.extend([pd.to_datetime(date).strftime('%Y-%m-%d')]*repeats)
+
+			random.shuffle(modified_dates)
+
+			if (any(pd.isnull(modified_dates))):
+				print(bursty_dates)
+			all_dates[grp.index.values] = modified_dates[:len(grp)]
 
 	df['post_dates'] = pd.to_datetime(all_dates)
-	df['post_dates'] = df.post_dates.dt.strftime('%Y-%m-%d')
+		# df['post_dates'] = df.post_dates.dt.strftime('%Y-%m-%d')
+	if df['post_dates'].nunique() in [1,2]:
+		print(df.post_dates.unique())
 
 	return df
 

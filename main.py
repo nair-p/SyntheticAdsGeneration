@@ -14,6 +14,8 @@ def parse_args():
 	parser.add_argument("--only_mo", action='store_true',
 					help='Indicate whether dataset with clusters already exists and only activity insertion needs to be done. \
 					If True, clusters wont be added.')
+	parser.add_argument("--only_edges", action='store_true',default=False,
+					help='Indicate whether to add connections between clusters. If false, the code assumes a data file with links already exists.')
 	args = parser.parse_args()
 	return args
 
@@ -34,7 +36,7 @@ def create_dataset_with_micro_clusters(args):
 def main():
 	# get arguments
 	args = parse_args()
-
+	
 	if not args.only_mo:
 		# adding micro-clusters
 		df_with_micro_clusters = create_dataset_with_micro_clusters(args)
@@ -47,21 +49,34 @@ def main():
 		file_name = args.starter_file.split(".csv")[0] + "_with_clusters.csv"
 		df_with_micro_clusters = pd.read_csv(file_name, index_col=False)
 
-	print(df_with_micro_clusters.shape)
-	save_file_name = args.starter_file.split(".csv")[0] + " _with_mo.csv"
-	df_with_micro_clusters['mo_labels'] = None
-	
-	# adding M.Os
-	df_with_mo = add_activity(df_with_micro_clusters, mo_type='spam')
-	df_with_mo.to_csv(save_file_name, index=False)
-	# df_with_mo = pd.read_csv(save_file_name, index_col=False)
+	save_file_name = args.starter_file.split(".csv")[0] + "_with_edges.csv"
+	if args.only_edges: # add edges
+		df_with_connections = fill_meta_data(df_with_micro_clusters)
+		df_with_connections.to_csv(save_file_name, index=False)
 
+	else:
+		df_with_connections = pd.read_csv(save_file_name, index_col=False)
+
+
+	save_file_name = args.starter_file.split(".csv")[0] + "_with_mo_spam.csv"
+	df_with_connections['mo_labels'] = None
+
+	# adding M.Os
+	print("Adding spam...")
+	df_with_mo = add_activity(df_with_connections, mo_type='spam')
+	df_with_mo.to_csv(save_file_name, index=False)
+	
+	print("Adding HT...")
+	save_file_name = args.starter_file.split(".csv")[0] + "_with_mo_ht.csv"
 	df_with_mo = add_activity(df_with_mo, mo_type='ht')
 	df_with_mo.to_csv(save_file_name, index=False)
-
+	# df_with_mo = pd.read_csv(save_file_name, index_col=False)
+	
+	print("Adding ISW...")
+	save_file_name = args.starter_file.split(".csv")[0] + "_with_mo_isw.csv"
 	df_with_mo = add_activity(df_with_mo, mo_type='isw')
 	print("Size of augmented dataset = " + str(df_with_mo.shape))
 	df_with_mo.to_csv(save_file_name, index=False)
-
+	
 if __name__ == '__main__':
 	main()
