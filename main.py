@@ -51,7 +51,7 @@ def main():
 
 	save_file_name = args.starter_file.split(".csv")[0] + "_with_edges.csv"
 	if args.only_edges: # add edges
-		df_with_connections = fill_meta_data(df_with_micro_clusters)
+		df_with_connections = add_edge_info(df_with_micro_clusters)
 		df_with_connections.to_csv(save_file_name, index=False)
 
 	else:

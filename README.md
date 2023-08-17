@@ -6,12 +6,17 @@ This code-base assumes that the starter files (in csv format) contains a corpus 
 The pipeline followed for the synthetic generation is given below.
 ![synthetic_data_generation_workflow.png](https://github.com/nair-p/SyntheticAdsGeneration/blob/main/figs/synthetic_data_generation_workflow.png)
 
-First, we want to add posting date, location, social media tags and phone numbers.
-For extracting names, we use [HTNER](www.github.com/HTNER). 
+Starting with generated ads, we want to add posting date, location, social media tags and phone numbers. For extracting names, we use [HTNER](www.github.com/HTNER). 
 
+Then we manually inject clusters (called micro-clusters) by treating each of the starter ad as a cluster center and duplicating it `n` times where `n` is the size of the cluster sampled from a pareto distribution. 
 
+Once clusters are created, we group them into larger clusters (called meta-clusters) and randomly add links between them by giving them the same phone numbers, social media tags and email ids. All the micro-clusters within a larger meta-cluster will have the same M.O label.  
 
-# double check if the graph info is correct
-node and its neighbors have the same label
-check if meta-clusters have the same activity
-after getting micro-clusters, get the meta-clusters and then M.O injection should be at the meta-cluster level (all micro-clusters in that meta-cluster). All should have the same label.
+This can be achieved by running
+`python3 main.py --starter_file \path\to\starter\csv\file\of\generated\ads`
+
+Once this is done, we need to build the graph by first extracting node features.
+`python3 extract_features.py --filename \path\to\csv\file\with\mo\labels`
+
+and then build the graph by running
+`python3 build_graph.py \path\to\feature\and\csv\files  \path\to\save\final\graph` 

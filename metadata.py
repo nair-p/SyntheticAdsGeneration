@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from scipy.sparse.csgraph import connected_components
 from collections import Counter
 
-def fill_meta_data(df):
+def add_edge_info(df):
 	# function to explicitly add edges/connections among clusters
 	'''
 	input: df - dataframe with clusters that need to be conencted using meta-data

@@ -2,7 +2,6 @@
 This file contains code for extracting the node features of the graph data for node classification. 
 This code needs to be run prior to converting the data into a graph format.
 Usage: python extract_features.py [--level_of_analysis 'LSH label']
-Author: Pratheeksha Nair
 '''
 
 import pandas as pd
@@ -41,18 +40,16 @@ def get_data_df():
 	recompute = args.recompute
 	data['id'] = data.index.values
 
-	return data, level_of_analysis, recompute
+	return data, level_of_analysis, recompute, args.filename
 
 if __name__ == "__main__":
 
-	data, level_of_analysis, recompute = get_data_df()
+	data, level_of_analysis, recompute, filename = get_data_df()
 
+	path_name = "".join(x for x in filename.split(".csv")[0].split("/")[:-1])
+	print(path_name)
 
-	# path_name = 'results/feats/'
-	path_name = 'ht_datasets/synthetic_aws2/'
-	# path_name = '/Users/pnair/home/McGill/Research/ICDM/WeaperGraph/ht_datasets/marinus_canada/'
-	if recompute:
-	# if the feature files have not already been saved, compute them
+	if recompute: # if the feature files have not already been saved, compute them
 		# computing features
 		cluster_sizes = {}
 		phone_count = {}
@@ -158,61 +155,3 @@ if __name__ == "__main__":
 		plot_df['cluster_id'] = [k for k in cluster_sizes.keys()]
 		
 		plot_df.to_csv(path_name+"/plot_df.csv",index=False)
-
-	exit()
-
-	hover_cols = ['Cluster Size Val','Phone Count Val', 'Loc Count Val', 'Phone Entropy Val', \
-				 'Loc Radius Val','Person Name Count Val','Valid URLs Val', 'Invalid URLs Val',\
-				 'Ads/week Val', 'Num URLs Val', 'Num Social Val', 'Num Emails Val', 'cluster_id']
-
-	cols_to_keep = set(plot_df.columns) - set(hover_cols)
-	filtered_df = plot_df[cols_to_keep]
-
-	## ICA	
-	print(".....ICA....")
-	# print(filtered_df)
-	transformer2 = FastICA(n_components=2, random_state=0)
-	is_ica2 = transformer2.fit_transform(filtered_df)
-
-	is_ica_df2 = pd.DataFrame(is_ica2, columns=['x','y'], index=filtered_df.index)
-	is_ica_df21 = is_ica_df2.join(filtered_df, how='inner')
-	is_ica_df21.to_csv(path_name+"is_ica.zip",index=False)
-
-
-	## TSNE
-	print("....TSNE.....")
-	perp_vals = [5, 10, 20, 30, 40, 50]
-	tsne_res = np.empty(len(perp_vals),dtype=object)
-	for i, perp in tqdm(enumerate(perp_vals)):
-		tsne_emb = TSNE(perplexity=perp, n_iter=5000).fit_transform(filtered_df)
-
-		tsne_emb = pd.DataFrame(tsne_emb, columns=['x','y'], index=filtered_df.index)
-		tsne_emb2 = tsne_emb.join(filtered_df, how='inner')
-		tsne_res[i] = tsne_emb2 
-
-	tsne_dict = {}
-	for perp, tsne_embs in zip(perp_vals, tsne_res):
-		tsne_dict[perp] = tsne_embs
-		
-	pkl.dump(tsne_dict, open(path_name+"all_tsne_res.pkl",'wb'))
-
-
-	## UMAP
-	print("...UMAP....")
-
-	nbr_sizes = [10, 50, 100, 200, 500, 1000]
-	mini_dists = [0, 0.01, 0.05, 0.1, 0.5, 1]
-
-	is_np = filtered_df.to_numpy()
-
-	umap_res = np.empty(shape=[len(nbr_sizes),len(mini_dists)],dtype=object)
-	for i, nbr in tqdm(enumerate(nbr_sizes)):
-		for j, dist in enumerate(mini_dists):
-			reducer = umap.UMAP(n_neighbors=nbr, min_dist=dist)
-			embedding = reducer.fit_transform(is_np)
-			is_umap = pd.DataFrame(embedding, columns=['x','y'], index=filtered_df.index)
-			is_umap = is_umap.join(filtered_df, how='inner')
-			umap_res[i][j] = is_umap
-
-
-	pkl.dump(umap_res, open(path_name+"umap_res.pkl",'wb'))

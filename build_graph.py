@@ -1,7 +1,6 @@
 '''
 This file contains the code to convert the csv files into graph data for node classification using GCN.
 Usage: python build_graph.py
-Author: Pratheeksha Nair
 '''
 import pickle
 import pandas as pd
@@ -186,8 +185,12 @@ def get_data_df():
 	level_of_analysis = 'cluster_id'
 	get_weak_labels(data, level_of_analysis=level_of_analysis)
 	nx_graph = build_graph(data, level_of_analysis=level_of_analysis)
+	
 	# data, nx_graph = find_meta_clusters(data, level_of_analysis=level_of_analysis)
-	feat_df = pd.read_csv("ht_datasets/synthetic_aws2/plot_df.csv", index_col=False)
+
+	feat_path = "".join(x for x in data_path.split(".csv")[0].split("/")[:-1])
+
+	feat_df = pd.read_csv(feat_path, index_col=False)
 	
 	clus_ind_map = dict(zip(data[level_of_analysis].unique(),range(data[level_of_analysis].nunique())))
 	feats = modify_feats(feat_df, clus_ind_map)
